@@ -21,7 +21,6 @@ flowchart TD
 ```
 --------------------------------------------
 
-
 🔍 흐름 설명
 1. 사용자 요청
 사용자가 xnew<T>(), PoolAllocator::Alloc(), Make_Shared() 등을 통해 메모리 할당 요청을 보냅니다.
@@ -30,7 +29,8 @@ flowchart TD
 Memory::Allocate(size)에서 요청한 크기를 기준으로 분기합니다.
 기준은 MAX_ALLOC_SIZE = 4096 바이트입니다.
 
-✅ 크기 ≤ 4096바이트: PoolAllocator 경로
+크기 ≤ 4096바이트: PoolAllocator 경로
+
 _poolTable[size]을 통해 적절한 MemoryPool을 O(1) 시간에 선택합니다.
 
 선택된 MemoryPool에서 Pop()을 호출하여 메모리를 가져옵니다.
@@ -39,10 +39,11 @@ _poolTable[size]을 통해 적절한 MemoryPool을 O(1) 시간에 선택합니�
 
 메모리 앞부분에 MemoryHeader를 붙인 후, 사용자에게 데이터 포인터를 반환합니다.
 
-✅ 크기 > 4096바이트: 일반 할당 경로
-MemoryPool에서 관리하기엔 크기가 초과되므로 _aligned_malloc()을 사용해 직접 메모리를 요청합니다.
+크기 > 4096바이트: 일반 할당 경로
 
-이 경우에도 MemoryHeader를 붙여 사용자에게 반환합니다.
+MemoryPool에서 관리하기엔 크기 초과이므로 _aligned_malloc()을 사용해 직접 메모리를 요청합니다.
+
+이 경우에도 MemoryHeader를 붙여서 반환합니다.
 
 3. 공통 처리
 모든 할당된 메모리에는 MemoryHeader가 함께 붙습니다.
@@ -56,5 +57,9 @@ MemoryPool에서 관리하기엔 크기가 초과되므로 _aligned_malloc()을 
 MemoryPool	크기별로 미리 할당된 메모리 블록을 재사용 (lock-free push/pop)
 Memory	요청된 크기에 따라 적절한 풀을 선택하고 블록을 할당
 PoolAllocator	커스텀 메모리 시스템의 진입점
+MemoryHeader	SLIST 호환 메타정보. 데이터 앞에 붙어 추적 및 해제 용도
+_aligned_malloc	풀에 여유가 없거나 4096바이트 초과 시 직접 메모리 할당
+
+
 MemoryHeader	SLIST 호환 메타정보. 데이터 앞에 붙어 추적 및 해제 용도
 _aligned_malloc	풀에 여유가 없거나 4096바이트 초과 시 직접 메모리 할당
