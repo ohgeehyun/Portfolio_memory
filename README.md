@@ -14,5 +14,5 @@ flowchart TD
     C --> D[Memory::Allocate]
     D --> E[MemoryPool::Pop or _aligned_malloc]
     B -- 4096 초과 --> F[_aligned_malloc]
-    F --> G[Header 붙이기 (AttachHeader)]
+    F --> G[Header 처리 - AttachHeader]
     G --> H[사용자에게 포인터 반환]
