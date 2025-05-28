@@ -20,42 +20,56 @@ flowchart TD
 
 ```
 --------------------------------------------
-🔍 흐름 설명
+메모리 할당 흐름
 1. 사용자 요청
-사용자가 xnew<T>(), PoolAllocator::Alloc(), Make_Shared() 등을 통해 메모리 할당 요청을 보냅니다.
+사용자가 메모리 할당을 요청합니다.
 
 2. 할당 크기 확인
-Memory::Allocate(size)에서 요청한 크기를 기준으로 분기합니다.
-기준은 MAX_ALLOC_SIZE = 4096 바이트입니다.
+Memory::Allocate(size)에서 요청 크기를 기준으로 분기합니다.
 
-크기 ≤ 4096바이트: PoolAllocator 경로
+기준값: MAX_ALLOC_SIZE = 4096 bytes
 
-_poolTable[size]을 통해 적절한 MemoryPool을 O(1) 시간에 선택합니다.
+요청 크기	할당 경로	설명
+크기 ≤ 4096 bytes	PoolAllocator 경로	메모리 풀에서 할당 처리
+크기 > 4096 bytes	일반 할당 경로	직접 _aligned_malloc() 호출
 
-선택된 MemoryPool에서 Pop()을 호출하여 메모리를 가져옵니다.
+3. PoolAllocator 경로 (크기 ≤ 4096 bytes)
+_poolTable[size]에서 O(1) 시간에 적절한 MemoryPool 선택
 
-풀에 여유가 없다면 _aligned_malloc()으로 새 블록을 할당합니다.
+선택된 풀에서 Pop() 호출하여 메모리 블록 획득
 
-메모리 앞부분에 MemoryHeader를 붙인 후, 사용자에게 데이터 포인터를 반환합니다.
+풀이 부족하면 _aligned_malloc()으로 새 블록 할당
 
-크기 > 4096바이트: 일반 할당 경로
+할당된 블록 앞에 MemoryHeader를 붙여 관리
 
-MemoryPool에서 관리하기엔 크기 초과이므로 _aligned_malloc()을 사용해 직접 메모리를 요청합니다.
+4. 일반 할당 경로 (크기 > 4096 bytes)
+MemoryPool 관리 범위를 벗어나므로 _aligned_malloc() 호출
 
-이 경우에도 MemoryHeader를 붙여서 반환합니다.
+할당된 메모리 앞에 MemoryHeader 추가
 
-3. 공통 처리
-모든 할당된 메모리에는 MemoryHeader가 함께 붙습니다.
+5. 공통 처리
+모든 메모리 블록은 MemoryHeader와 함께 관리됨
 
-해제 시 DetacchHeader()를 통해 헤더를 분리합니다.
+해제 시 DetachHeader()를 호출해 헤더 분리
 
-크기에 따라 다시 메모리 풀로 반납하거나 _aligned_free()로 해제됩니다.
+크기에 따라 다시 풀로 반납하거나 _aligned_free()로 해제
 
-📌 핵심 컴포넌트 요약
+핵심 컴포넌트
 컴포넌트	역할
 MemoryPool	크기별로 미리 할당된 메모리 블록을 재사용 (lock-free push/pop)
-Memory	요청된 크기에 따라 적절한 풀을 선택하고 블록을 할당
-PoolAllocator	커스텀 메모리 시스템의 진입점
-MemoryHeader	SLIST 호환 메타정보. 데이터 앞에 붙어 추적 및 해제 용도
-_aligned_malloc	풀에 여유가 없거나 4096바이트 초과 시 직접 메모리 할당
+Memory	요청 크기에 맞는 메모리 풀 선택 및 할당 관리
+PoolAllocator	메모리 할당 시스템 진입점
+MemoryHeader	메모리 블록 앞에 붙는 메타정보, 추적 및 해제 용도
+_aligned_malloc	풀에 여유가 없거나 크기 초과 시 직접 메모리 할당
+
+요약
+메모리 풀을 활용해 작은 크기 할당을 빠르고 효율적으로 처리
+
+큰 크기는 직접 시스템 할당으로 처리하여 관리 단순화
+
+모든 할당 블록은 헤더로 관리되어 안전한 추적 및 해제 보장
+
+lock-free 구조로 멀티스레드 환경에 적합
+
+
 
